@@ -55,8 +55,8 @@ class TorczonImpl:
             print("torczon_implicit: function calls made: %d" % self._torczon_implicit_function_calls)
 
         x = xsimplex[:,bestxind]
-        y = (fvalsx[0,bestxind] + fvalsx[1,bestxind]) / 2
-        return x, y
+        #y = (fvalsx[0,bestxind] + fvalsx[1,bestxind]) / 2
+        return x#, y
 
     #function [fvals bestx] = find_smallest(f, x, fvals, initflag)
     def _find_smallest(self, f, x, fvals, initflag):

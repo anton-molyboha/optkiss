@@ -7,8 +7,10 @@ def norm(n):
             y = 0.0
         return y**2 - np.sum(x**2)
 
-    x, y = ot.torczon_implicit(objf, 5*np.ones(n), np.sqrt(n))
-    return np.linalg.norm(x) < 1e-3 and np.abs(y) < 1e-3
+    x = ot.torczon_implicit(objf, 5*np.ones(n), np.sqrt(n))
+    #print(x)
+    return np.linalg.norm(x) < 1e-3
 
 if __name__ == "__main__":
-    print("Testing minimization of ||x||: " + str(norm(3)))
+    print("Testing minimization of ||x|| in R^3: " + str(norm(3)))
+    print("Testing minimization of ||x|| in R^{300}: " + str(norm(300)))
