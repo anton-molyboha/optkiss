@@ -14,8 +14,9 @@ def _np_true(shape):
 
 
 class TorczonImpl:
-    def __init__(self):
+    def __init__(self, callback=lambda x: None):
         self._torczon_implicit_function_calls = 0
+        self._callback = callback
         self.expand_coef = 2.0
         self.contract_coef = 1 / self.expand_coef
         self.xeps = 1e-4
@@ -25,28 +26,30 @@ class TorczonImpl:
     # f_orig must be increasing in y
     def torczon_implicit(self, f, x0, y0):
         self._torczon_implicit_function_calls = 0
+        callback = self._callback
 
         x0 = np.asarray(x0)
         n = len(x0)
         xsimplex = x0.reshape([n, 1]) * np.ones([1, n+1])
         xsimplex[:n, :n] = xsimplex[:n, :n] + np.eye(n)
 
-        print("torczon_implicit: initializing")
+        #print("torczon_implicit: initializing")
         fvalsx = y0 + np.concatenate([np.zeros([1, n+1]), np.ones([1, n+1])], 0)
         fvalsx, bestxind = self._find_smallest(f, xsimplex, fvalsx, _np_false([n+1]))
 
         goon = True
         iteration_count = 1
         while goon:
-            print("torczon_implicit: iteration %d" % iteration_count)
+            #print("torczon_implicit: iteration %d" % iteration_count)
             fvalsx, xsimplex, bestxind, finishx = self._torczon_step(fvalsx, xsimplex, bestxind, f)
+            callback(xsimplex[:, bestxind])
 
             # Check stopping condition
             if finishx:
                 goon = False
             else:
                 iteration_count += 1
-            print("torczon_implicit: function calls made: %d" % self._torczon_implicit_function_calls)
+            #print("torczon_implicit: function calls made: %d" % self._torczon_implicit_function_calls)
 
         x = xsimplex[:, bestxind]
         #y = (fvalsx[0,bestxind] + fvalsx[1,bestxind]) / 2
@@ -59,7 +62,7 @@ class TorczonImpl:
         # Number of points
         m = x.shape[1]
         # Initialize all fvals
-        print("torczon_implicit.find_smallest: initializing fvals")
+        #print("torczon_implicit.find_smallest: initializing fvals")
         for j in range(m):
             if not initflag[j]:
                 if f(x[:, j], fvals[0, j]) > 0:
@@ -83,7 +86,7 @@ class TorczonImpl:
                         if f(x[:, j], fvals[1, j]) >= 0:
                             goon = False
         # Break ties
-        print("torczon_implicit.find_smallest: breaking ties")
+        #print("torczon_implicit.find_smallest: breaking ties")
         goon = True
         while goon:
             bestx = np.argmin(fvals[0, :])
