@@ -16,7 +16,7 @@ def torczon_implicit(f, x0, y0):
 class TorczonImpl:
     def __init__(self):
         self._torczon_implicit_function_calls = 0
-        self.expand_coef = 2
+        self.expand_coef = 2.0
         self.contract_coef = 1 / self.expand_coef
         self.xeps = 1e-4
         self.yeps = 1e-4
@@ -150,7 +150,7 @@ class TorczonImpl:
                         simplex_cur[:,i] = self.expand_coef * simplex_refl[:,i] + (1 - self.expand_coef) * simplex_refl[:,bestind]
                         fvals_cur[:,i] = fvals_refl[:,i]
                 subindex = _np_true([n+1])
-                subindex[bestind_refl] = False
+                subindex[bestind] = False
                 simplex_ex = np.concatenate([simplex_refl, simplex_cur[:,subindex]], 1)
                 fvals_ex = np.concatenate([fvals_refl, fvals_cur[:,subindex]], 1)
                 initflag = _np_false([2*n+1])
@@ -159,10 +159,12 @@ class TorczonImpl:
                 if bestind_ex >= n+1:
                     simplex = simplex_cur
                     fvals[:,subindex] = fvals_ex[:,(n+1):(2*n+1)]
-                    fvals[:,bestind_refl] = fvals_ex[:,bestind_refl]
-                    bestind = bestind_ex - (n + 1)
-                    if bestind >= bestind_refl:
-                        bestind = bestind + 1
+                    fvals[:,bestind] = fvals_ex[:,bestind]
+                    bestind_ex = bestind_ex - (n + 1)
+                    if bestind_ex >= bestind:
+                        bestind = bestind_ex + 1
+                    else:
+                        bestind = bestind_ex
                 else:
                     simplex = simplex_refl
                     fvals = fvals_ex[:,:(n+1)]
