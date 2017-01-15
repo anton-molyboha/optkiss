@@ -9,7 +9,13 @@ def norm(n):
             y = 0.0
         return y**2 - np.sum(x**2)
 
-    x = ot.torczon_implicit(objf, 5*np.ones(n), np.sqrt(n))
+    iteration = [0]
+    def callback(x, y):
+        iteration[0] += 1
+        if iteration[0] % 100 == 0:
+            print("Iteration: " + str(iteration[0]))
+
+    x = ot.torczon_implicit(objf, 5*np.ones(n), np.sqrt(n), callback=callback)
     #print(x)
     return np.linalg.norm(x) < 1e-3
 

@@ -1,8 +1,8 @@
 import numpy as np
 
 
-def torczon_implicit(f, x0, y0):
-    return TorczonImpl().torczon_implicit(f, x0, y0)
+def torczon_implicit(f, x0, y0, callback=lambda x, y: None):
+    return TorczonImpl(callback=callback).torczon_implicit(f, x0, y0)
 
 
 def _np_false(shape):
@@ -14,7 +14,7 @@ def _np_true(shape):
 
 
 class TorczonImpl:
-    def __init__(self, callback=lambda x: None):
+    def __init__(self, callback=lambda x, y: None):
         self._torczon_implicit_function_calls = 0
         self._callback = callback
         self.expand_coef = 2.0
@@ -42,7 +42,7 @@ class TorczonImpl:
         while goon:
             #print("torczon_implicit: iteration %d" % iteration_count)
             fvalsx, xsimplex, bestxind, finishx = self._torczon_step(fvalsx, xsimplex, bestxind, f)
-            callback(xsimplex[:, bestxind])
+            callback(xsimplex[:, bestxind], 0.5 * (fvalsx[0, bestxind] + fvalsx[1, bestxind]))
 
             # Check stopping condition
             if finishx:
