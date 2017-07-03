@@ -5,12 +5,33 @@ def torczon_implicit(f, x0, y0, callback=lambda x, y: None):
     return TorczonImpl(callback=callback).torczon_implicit(f, x0, y0)
 
 
+def torczon(f, x0, callback=lambda x, y: None):
+    return TorczonImpl(callback=callback).torczon(f, x0)
+
+
 def _np_false(shape):
     return np.zeros(shape, np.bool)
 
 
 def _np_true(shape):
     return np.ones(shape, np.bool)
+
+
+def _update_range_implicit(f, x, bnds, y):
+    c = f(x, y)
+    if c < 0:
+        return (y, bnds[1])
+    elif c > 0:
+        return (bnds[0], y)
+    elif c == 0:
+        return (y, y)
+    else:  # c is NaN
+        raise ValueError('Implicit function returned a NaN')
+
+
+def _update_range_explicit(f, x, bnds, y):
+    res = f(x)
+    return (res, res)
 
 
 class TorczonImpl:
@@ -25,6 +46,18 @@ class TorczonImpl:
     # torczon's derivative-free optimization algorithm
     # f_orig must be increasing in y
     def torczon_implicit(self, f, x0, y0):
+        def update_range(x, bnds, y):
+            self._torczon_implicit_function_calls += 1
+            return _update_range_implicit(f, x, bnds, y)
+        return self.run(update_range, x0, y0)
+
+    def torczon(self, f, x0):
+        def update_range(x, bnds, y):
+            self._torczon_implicit_function_calls += 1
+            return _update_range_explicit(f, x, bnds, y)
+        return self.run(update_range, x0, f(x0))
+
+    def run(self, update_range, x0, y0):
         self._torczon_implicit_function_calls = 0
         callback = self._callback
 
@@ -35,13 +68,13 @@ class TorczonImpl:
 
         #print("torczon_implicit: initializing")
         fvalsx = y0 + np.concatenate([np.zeros([1, n+1]), np.ones([1, n+1])], 0)
-        fvalsx, bestxind = self._find_smallest(f, xsimplex, fvalsx, _np_false([n+1]))
+        fvalsx, bestxind = self._find_smallest(update_range, xsimplex, fvalsx, _np_false([n+1]))
 
         goon = True
         iteration_count = 1
         while goon:
             #print("torczon_implicit: iteration %d" % iteration_count)
-            fvalsx, xsimplex, bestxind, finishx = self._torczon_step(fvalsx, xsimplex, bestxind, f)
+            fvalsx, xsimplex, bestxind, finishx = self._torczon_step(fvalsx, xsimplex, bestxind, update_range)
             callback(xsimplex[:, bestxind], 0.5 * (fvalsx[0, bestxind] + fvalsx[1, bestxind]))
 
             # Check stopping condition
@@ -56,7 +89,7 @@ class TorczonImpl:
         return x #, y
 
     #function [fvals bestx] = find_smallest(f, x, fvals, initflag)
-    def _find_smallest(self, f, x, fvals, initflag):
+    def _find_smallest(self, update_range, x, fvals, initflag):
         # Dimension of the space
         n = x.shape[0]
         # Number of points
@@ -65,26 +98,14 @@ class TorczonImpl:
         #print("torczon_implicit.find_smallest: initializing fvals")
         for j in range(m):
             if not initflag[j]:
-                if f(x[:, j], fvals[0, j]) > 0:
-                    step = fvals[1, j] - fvals[0, j]
-                    goon = True
-                    while goon:
-                        fvals[1, j] = fvals[0, j]
-                        fvals[0, j] = fvals[1, j] - step
-                        step *= 2
-                        self._torczon_implicit_function_calls += 1
-                        if f(x[:, j], fvals[0, j]) <= 0:
-                            goon = False
-                elif f(x[:, j], fvals[1, j]) < 0:
-                    step = fvals[1, j] - fvals[0, j]
-                    goon = True
-                    while goon:
-                        fvals[0, j] = fvals[1, j]
-                        fvals[1, j] = fvals[0, j] + step
-                        step *= 2
-                        self._torczon_implicit_function_calls += 1
-                        if f(x[:, j], fvals[1, j]) >= 0:
-                            goon = False
+                step = fvals[1, j] - fvals[0, j]
+                fvals[:, j] = update_range(x[:, j], (-np.inf, np.inf), fvals[0, j])
+                while not np.isfinite(fvals[0, j]):
+                    fvals[:, j] = update_range(x[:, j], fvals[:, j], fvals[1, j] - step)
+                    step *= 2
+                while not np.isfinite(fvals[1, j]):
+                    fvals[:, j] = update_range(x[:, j], fvals[:, j], fvals[0, j] + step)
+                    step *= 2
         # Break ties
         #print("torczon_implicit.find_smallest: breaking ties")
         goon = True
@@ -98,25 +119,19 @@ class TorczonImpl:
                     if fvals[1, j] - fvals[0, j] > self.yeps:
                         testy = (fvals[0, j] + fvals[1, j]) / 2
                         self._torczon_implicit_function_calls += 1
-                        if f(x[:, j], testy) <= 0:
-                            fvals[0, j] = testy
-                        else:
-                            fvals[1, j] = testy
+                        fvals[:, j] = update_range(x[:, j], fvals[:, j], testy)
                         improved = True
             if goon and (fvals[1, bestx] - fvals[0, bestx] > self.yeps):
                 testy = (fvals[0, bestx] + fvals[1, bestx]) / 2
                 self._torczon_implicit_function_calls += 1
-                if f(x[:, bestx], testy) >= 0:
-                    fvals[1, bestx] = testy
-                else:
-                    fvals[0, bestx] = testy
+                fvals[:, bestx] = update_range(x[:, bestx], fvals[:, bestx], testy)
                 improved = True
             goon = improved
         # The output variables already have the correct values
         return fvals, bestx
 
     #def [fvals simplex bestind finish] = torczon_step(fvals, simplex, bestind, f)
-    def _torczon_step(self, fvals, simplex, bestind, f):
+    def _torczon_step(self, fvals, simplex, bestind, update_range):
         n = simplex.shape[0]
         simplex_refl = np.zeros([n, n+1])
         fvals_refl = np.zeros([2, n+1])
@@ -136,7 +151,7 @@ class TorczonImpl:
                     fvals_refl[:, i] = fvals[:, bestind]
             initflag = _np_false([n+1])
             initflag[bestind] = True
-            fvals_refl, bestind_refl = self._find_smallest(f, simplex_refl, fvals_refl, initflag)
+            fvals_refl, bestind_refl = self._find_smallest(update_range, simplex_refl, fvals_refl, initflag)
             if bestind_refl != bestind:
                 # expand
                 for i in range(n+1):
@@ -153,7 +168,7 @@ class TorczonImpl:
                 fvals_ex = np.concatenate([fvals_refl, fvals_cur[:, subindex]], 1)
                 initflag = _np_false([2*n+1])
                 initflag[:(n+1)] = _np_true([n+1])
-                fvals_ex, bestind_ex = self._find_smallest(f, simplex_ex, fvals_ex, initflag)
+                fvals_ex, bestind_ex = self._find_smallest(update_range, simplex_ex, fvals_ex, initflag)
                 if bestind_ex >= n+1:
                     simplex = simplex_cur
                     fvals[:, subindex] = fvals_ex[:, (n+1):(2*n+1)]
@@ -180,7 +195,7 @@ class TorczonImpl:
                         fvals_cur[:, i] = fvals[:, i]
                 initflag = _np_false([n+1])
                 initflag[bestind] = True
-                fvals_cur, bestind_cur = self._find_smallest(f, simplex_cur, fvals_cur, initflag)
+                fvals_cur, bestind_cur = self._find_smallest(update_range, simplex_cur, fvals_cur, initflag)
                 if bestind_cur != bestind:
                     goon = False
                     bestind = bestind_cur
