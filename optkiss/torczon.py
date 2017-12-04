@@ -1,12 +1,12 @@
 import numpy as np
 
 
-def torczon_implicit(f, x0, y0, callback=lambda x, y: None):
-    return TorczonImpl(callback=callback).torczon_implicit(f, x0, y0)
+def torczon_implicit(f, x0, y0, callback=lambda x, y: None, initial_step_size=1.0):
+    return TorczonImpl(callback=callback).torczon_implicit(f, x0, y0, initial_step_size=initial_step_size)
 
 
-def torczon(f, x0, callback=lambda x, y: None):
-    return TorczonImpl(callback=callback).torczon(f, x0)
+def torczon(f, x0, callback=lambda x, y: None, initial_step_size=1.0):
+    return TorczonImpl(callback=callback).torczon(f, x0, initial_step_size=initial_step_size)
 
 
 def _np_false(shape):
@@ -45,26 +45,26 @@ class TorczonImpl:
 
     # torczon's derivative-free optimization algorithm
     # f_orig must be increasing in y
-    def torczon_implicit(self, f, x0, y0):
+    def torczon_implicit(self, f, x0, y0, initial_step_size=1.0):
         def update_range(x, bnds, y):
             self._torczon_implicit_function_calls += 1
             return _update_range_implicit(f, x, bnds, y)
-        return self.run(update_range, x0, y0)
+        return self.run(update_range, x0, y0, initial_step_size=initial_step_size)
 
-    def torczon(self, f, x0):
+    def torczon(self, f, x0, initial_step_size=1.0):
         def update_range(x, bnds, y):
             self._torczon_implicit_function_calls += 1
             return _update_range_explicit(f, x, bnds, y)
-        return self.run(update_range, x0, f(x0))
+        return self.run(update_range, x0, f(x0), initial_step_size=initial_step_size)
 
-    def run(self, update_range, x0, y0):
+    def run(self, update_range, x0, y0, initial_step_size=1.0):
         self._torczon_implicit_function_calls = 0
         callback = self._callback
 
         x0 = np.asarray(x0)
         n = len(x0)
         xsimplex = x0.reshape([n, 1]) * np.ones([1, n+1])
-        xsimplex[:n, :n] = xsimplex[:n, :n] + np.eye(n)
+        xsimplex[:n, :n] = xsimplex[:n, :n] + initial_step_size * np.eye(n)
 
         #print("torczon_implicit: initializing")
         fvalsx = y0 + np.concatenate([np.zeros([1, n+1]), np.ones([1, n+1])], 0)
