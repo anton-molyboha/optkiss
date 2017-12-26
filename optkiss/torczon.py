@@ -1,12 +1,18 @@
 import numpy as np
 
 
-def torczon_implicit(f, x0, y0, callback=lambda x, y: None, initial_step_size=1.0):
-    return TorczonImpl(callback=callback).torczon_implicit(f, x0, y0, initial_step_size=initial_step_size)
+def torczon_implicit(f, x0, y0, callback=lambda x, y: None, initial_step_size=1.0, xeps=None):
+    optimizer = TorczonImpl(callback=callback)
+    if xeps is not None:
+        optimizer.xeps = xeps
+    return optimizer.torczon_implicit(f, x0, y0, initial_step_size=initial_step_size)
 
 
-def torczon(f, x0, callback=lambda x, y: None, initial_step_size=1.0):
-    return TorczonImpl(callback=callback).torczon(f, x0, initial_step_size=initial_step_size)
+def torczon(f, x0, callback=lambda x, y: None, initial_step_size=1.0, xeps=None):
+    optimizer = TorczonImpl(callback=callback)
+    if xeps is not None:
+        optimizer.xeps = xeps
+    return optimizer.torczon(f, x0, initial_step_size=initial_step_size)
 
 
 def _np_false(shape):
