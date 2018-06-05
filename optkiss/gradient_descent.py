@@ -78,3 +78,82 @@ class GradientDescent(object):
             if iter_count <= 0:
                 raise RuntimeError("Exceeded iteration limit")
         return self.x
+
+
+class ScaledObjective(GradientDescentObjective):
+    def __init__(self, base, scale):
+        super(ScaledObjective, self).__init__()
+        self.base = base
+        self.scale = np.asarray(scale)
+
+    def unscale(self, x):
+        """Convert coordinates from the scaled space to the original space"""
+        return x / self.scale
+
+    def scale(self, x):
+        """Convert coordinates from the original space to the scaled space"""
+        return x * self.scale
+
+    def set_point(self, x):
+        self.base.set_point(self.unscale(x))
+
+    def value(self):
+        return self.base.value()
+
+    def gradient(self):
+        return self.base.gradient() / self.scale
+
+    def max_step(self, d):
+        return self.base.max_step(d / self.scale)
+
+
+class HierarchicalElement(GradientDescentObjective):
+    def __init__(self, base, combined_x, stage_inds, minimization_params, lower_element=None):
+        """
+        An element of a hierarchical optimization process
+        :param base:
+        :param stages: ordered from inner to outer
+        :param index:
+        :param lower_element:
+        """
+        super(HierarchicalElement, self).__init__()
+        self.base = base
+        self.combined_x = combined_x
+        self.stage_inds = stage_inds
+        self.minimization_params = minimization_params
+        self.lower_element = lower_element
+
+    def set_point(self, x):
+        self.combined_x[self.stage_inds] = x
+        if self.lower_element is None:
+            self.base.set_point(self.combined_x)
+        else:
+            gd = GradientDescent(self.lower_element, self.lower_element.get_point())
+            gd.minimize(**self.minimization_params)
+            self.lower_element.set_point(gd.x)
+
+    def get_point(self):
+        return np.array(self.combined_x[self.stage_inds])
+
+    def get_combined_point(self):
+        return np.array(self.combined_x)
+
+    def value(self):
+        return self.base.value()
+
+    def gradient(self):
+        return self.base.gradient()[self.stage_inds]
+
+    def max_step(self, d):
+        full_d = np.zeros(len(self.combined_x))
+        full_d[self.stage_inds] = d
+        return self.base.max_step(full_d)
+
+
+def hierarchical_objective(base, stages, x0, minimization_params):
+    res = None
+    combined_x = np.empty(len(x0))
+    combined_x[:] = x0
+    for stage in stages:
+        res = HierarchicalElement(base, combined_x, stage, minimization_params, res)
+    return res
