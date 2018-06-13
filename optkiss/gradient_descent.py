@@ -46,11 +46,12 @@ class GradientDescent(object):
 
         # Bisect to find suitable step size
         grad_vec_sq = np.dot(grad_vec, grad_vec)
+        grad_vec_len = np.sqrt(grad_vec_sq)
         def objective_for_step(step):
             self.objective.set_point(self.x - step * grad_vec)
             return self.objective.value()
         def is_good(step):
-            if step == 0:
+            if step * grad_vec_len <= 0.5 * eps:
                 return -1
             obj = objective_for_step(step)
             if obj < obj0 - lambda2 * step * grad_vec_sq:
@@ -70,7 +71,7 @@ class GradientDescent(object):
 
         # Move to the new point
         self.x = self.x - step * grad_vec
-        return step * np.sqrt(grad_vec_sq) > eps
+        return step * grad_vec_len > eps
 
     def minimize(self, stopping_eps, grad_lambda1=0.3, grad_lambda2=0.6, max_step=0.3, iter_count=10000):
         while self.iteration(grad_lambda1, grad_lambda2, max_step, stopping_eps):
