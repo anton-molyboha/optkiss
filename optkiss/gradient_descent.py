@@ -42,7 +42,7 @@ class GradientDescent(object):
         self.objective.set_point(self.x)
         obj0 = self.objective.value()
         grad_vec = self.objective.gradient()
-        max_grad_step = max_step * self.objective.max_step(grad_vec)
+        max_grad_step = max_step * self.objective.max_step(-grad_vec)
 
         # Bisect to find suitable step size
         grad_vec_sq = np.dot(grad_vec, grad_vec)
