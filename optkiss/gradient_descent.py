@@ -24,6 +24,31 @@ class GradientDescentObjective(object):
     def gradient(self):
         raise NotImplementedError("Abstract method")
 
+    def descent_direction(self):
+        """
+        The direction in which to look for the next iteration.
+
+        Must have: np.dot(descent_direction(), gradient()) < 0
+
+        By default, this is just -gradient()
+
+        A perfect value would be -np.solve(hermitian, gradient()), but that would require
+        to compute the matrix of second derivatives (aka hermitian)
+        :return:
+        """
+        return -self.gradient()
+
+    def progress_metric(self, x1, x2):
+        """
+        How much of a progress is it to move from x1 to x2? Used in the stopping criterion.
+
+        By default, just the Euclidean distance from x1 to x2.
+        :param x1:
+        :param x2:
+        :return:
+        """
+        return np.linalg.norm(x2 - x1)
+
     def max_step(self, d):
         """If the function has some form of an inner barrier, the maximal step that can be taken from
         point x in the direction d such that to stay within the domain of the function."""
@@ -42,13 +67,17 @@ class GradientDescent(object):
         self.objective.set_point(self.x)
         obj0 = self.objective.value()
         grad_vec = self.objective.gradient()
-        max_grad_step = max_step * self.objective.max_step(-grad_vec)
+        direction = self.objective.descent_direction()
+        max_grad_step = max_step * self.objective.max_step(direction)
 
         # Bisect to find suitable step size
-        grad_vec_sq = np.dot(grad_vec, grad_vec)
+        grad_vec_sq = -np.dot(grad_vec, direction)
         grad_vec_len = np.sqrt(grad_vec_sq)
+        if grad_vec_sq * 1e20 < eps:
+            # Within computational accuracy, gradient is zero. Stop iterations.
+            return False
         def objective_for_step(step):
-            self.objective.set_point(self.x - step * grad_vec)
+            self.objective.set_point(self.x + step * direction)
             return self.objective.value()
         def is_good(step):
             if step * grad_vec_len <= 0.5 * eps:
@@ -70,8 +99,10 @@ class GradientDescent(object):
             step = max_grad_step * sopt.bisect(lambda k: is_good(k * max_grad_step), 0, 1)
 
         # Move to the new point
-        self.x = self.x - step * grad_vec
-        return step * grad_vec_len > eps
+        newx = self.x + step * direction
+        progress = self.objective.progress_metric(self.x, newx)
+        self.x = newx
+        return progress > eps
 
     def minimize(self, stopping_eps, grad_lambda1=0.3, grad_lambda2=0.6, max_step=0.3, iter_count=10000):
         while self.iteration(grad_lambda1, grad_lambda2, max_step, stopping_eps):
