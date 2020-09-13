@@ -63,7 +63,7 @@ class GradientDescent(object):
     def get_point(self):
         return self.x
 
-    def iteration(self, lambda1, lambda2, max_step, eps):
+    def iteration(self, lambda1, lambda2, max_step, eps, stopping_condition=None):
         self.objective.set_point(self.x)
         obj0 = self.objective.value()
         grad_vec = self.objective.gradient()
@@ -100,12 +100,15 @@ class GradientDescent(object):
 
         # Move to the new point
         newx = self.x + step * direction
-        progress = self.objective.progress_metric(self.x, newx)
+        if stopping_condition is None:
+            res = self.objective.progress_metric(self.x, newx) > eps
+        else:
+            res = stopping_condition(self.x, newx, grad_vec)
         self.x = newx
-        return progress > eps
+        return res
 
-    def minimize(self, stopping_eps, grad_lambda1=0.3, grad_lambda2=0.6, max_step=0.3, iter_count=10000):
-        while self.iteration(grad_lambda1, grad_lambda2, max_step, stopping_eps):
+    def minimize(self, stopping_eps, grad_lambda1=0.3, grad_lambda2=0.6, max_step=0.3, iter_count=10000, stopping_condition=None):
+        while self.iteration(grad_lambda1, grad_lambda2, max_step, stopping_eps, stopping_condition):
             iter_count -= 1
             if iter_count <= 0:
                 raise RuntimeError("Exceeded iteration limit")
