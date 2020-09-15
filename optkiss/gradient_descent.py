@@ -103,7 +103,7 @@ class GradientDescent(object):
         if stopping_condition is None:
             res = self.objective.progress_metric(self.x, newx) > eps
         else:
-            res = stopping_condition(self.x, newx, grad_vec)
+            res = not stopping_condition(self.x, newx, grad_vec)
         self.x = newx
         return res
 
