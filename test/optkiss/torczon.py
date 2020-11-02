@@ -38,7 +38,14 @@ def norm_explicit(n):
 def rosenbrock(n):
     def objf(x, y):
         return y - rosen(x)
-    x = ot.torczon_implicit(objf, np.zeros(n), 0.0)
+
+    iteration = [0]
+    def callback(x, y):
+        iteration[0] += 1
+        if iteration[0] % 100 == 0:
+            print("Iteration: " + str(iteration[0]))
+
+    x = ot.torczon_implicit(objf, np.zeros(n), 0.0, callback=callback)
     print(x)
     return np.linalg.norm(x - np.ones(n)) < 1e-3
 

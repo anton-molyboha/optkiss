@@ -105,13 +105,28 @@ class TorczonImpl:
         for j in range(m):
             if not initflag[j]:
                 step = fvals[1, j] - fvals[0, j]
+                if not np.isfinite(step):
+                    raise ValueError("Initial function-value range must be finite, got (" +
+                                     str(fvals[0, j]) + ", " + str(fvals[1, j]) + ")")
+                if step <= 0:
+                    raise ValueError("Initial function-value range must have lower bound " +
+                                     "strictly less than the upper bound, got (" +
+                                     str(fvals[0, j]) + ", " + str(fvals[1, j]) + ")")
                 fvals[:, j] = update_range(x[:, j], (-np.inf, np.inf), fvals[0, j])
                 while not np.isfinite(fvals[0, j]):
                     fvals[:, j] = update_range(x[:, j], fvals[:, j], fvals[1, j] - step)
                     step *= 2
+                    if not np.isfinite(step):
+                        raise ValueError("Could not find the lower bound for the function value at x = (" +
+                                         ", ".join([str(v) for v in x[:, j]]) + "). " +
+                                         "The upper bound is " + str(fvals[1, j]))
                 while not np.isfinite(fvals[1, j]):
                     fvals[:, j] = update_range(x[:, j], fvals[:, j], fvals[0, j] + step)
                     step *= 2
+                    if not np.isfinite(step):
+                        raise ValueError("Could not find the upper bound for the function value at x = (" +
+                                         ", ".join([str(v) for v in x[:, j]]) + "). " +
+                                         "The lower bound is " + str(fvals[0, j]))
         # Break ties
         #print("torczon_implicit.find_smallest: breaking ties")
         goon = True
@@ -147,6 +162,7 @@ class TorczonImpl:
         goon = True
         finish = False
         while goon:
+            default_frange = [np.min(fvals[0, :]), np.max(fvals[1, :])]
             # Reflect
             for i in range(n+1):
                 if i == bestind:
@@ -154,7 +170,7 @@ class TorczonImpl:
                     fvals_refl[:, i] = fvals[:, i]
                 else:
                     simplex_refl[:, i] = 2 * simplex[:, bestind] - simplex[:, i]
-                    fvals_refl[:, i] = fvals[:, bestind]
+                    fvals_refl[:, i] = default_frange
             initflag = _np_false([n+1])
             initflag[bestind] = True
             fvals_refl, bestind_refl = self._find_smallest(update_range, simplex_refl, fvals_refl, initflag)
@@ -167,7 +183,7 @@ class TorczonImpl:
                     else:
                         simplex_cur[:, i] = self.expand_coef * simplex_refl[:, i] +\
                                             (1 - self.expand_coef) * simplex_refl[:, bestind]
-                        fvals_cur[:, i] = fvals_refl[:, i]
+                        fvals_cur[:, i] = default_frange
                 subindex = _np_true([n+1])
                 subindex[bestind] = False
                 simplex_ex = np.concatenate([simplex_refl, simplex_cur[:, subindex]], 1)
@@ -198,7 +214,7 @@ class TorczonImpl:
                     else:
                         simplex_cur[:, i] = self.contract_coef * simplex[:, i] +\
                                             (1 - self.contract_coef) * simplex[:, bestind]
-                        fvals_cur[:, i] = fvals[:, i]
+                        fvals_cur[:, i] = default_frange
                 initflag = _np_false([n+1])
                 initflag[bestind] = True
                 fvals_cur, bestind_cur = self._find_smallest(update_range, simplex_cur, fvals_cur, initflag)
