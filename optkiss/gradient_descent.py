@@ -192,3 +192,56 @@ def hierarchical_objective(base, stages, x0, minimization_params):
     for stage in stages:
         res = HierarchicalElement(base, combined_x, stage, minimization_params, res)
     return res
+
+"""
+An adapter of a GradientDescentObjective that implements BFGS method.
+BFGS method is one of quasi-Newton methods, and has super-linear convergence
+under suitable conditions.
+"""
+class BFGS(GradientDescentObjective):
+    def __init__(self, base):
+        super(BFGS, self).__init__()
+        self._base = base
+        self._H = None
+        self._last_x = None
+        self._last_gradient = None
+
+    def set_point(self, x):
+        if self._H is None:
+            self._H = np.eye(len(x))
+        self.x = x
+        self._base.set_point(x)
+
+    def value(self):
+        return self._base.value()
+
+    def gradient(self):
+        return self._base.gradient()
+
+    def descent_direction(self):
+        grad = self._base.gradient()
+        if self._H is None:
+            self._H = np.eye(len(grad))
+        res = -np.dot(self._H, grad)
+        if ((self._last_x is not None) and
+            (self._last_gradient is not None)):
+            step = self.x - self._last_x
+            delta_grad = grad - self._last_gradient
+            sg = np.dot(step, delta_grad)
+            # The sufficient conditions for having positive-definite H.
+            # We don't want to update H otherwise, just in case.
+            if sg < 0:
+                r = np.dot(self._H, delta_grad) / sg
+                sr = np.dot(step[:, np.newaxis], r[np.newaxis, :])
+                self._H += ((1 + np.dot(r, delta_grad)) / sg *
+                                np.dot(step[:, np.newaxis], step[np.newaxis, :]) -
+                            (sr + sr.T))
+        self._last_x = self.x
+        self._last_gradient = grad
+        return res
+
+    def progress_metric(self, x1, x2):
+        return self._base.progress_metric(x1, x2)
+
+    def max_step(self, d):
+        return self._base.max_step(d)

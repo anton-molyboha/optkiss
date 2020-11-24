@@ -87,6 +87,25 @@ def rosenbrock_hierarchical(n):
     return np.linalg.norm(x - np.ones(n)) < 1e-3
 
 
+def rosenbrock_BFGS(n):
+    class Objf(ot.GradientDescentObjective):
+        def __init__(self):
+            super(Objf, self).__init__()
+
+        def value(self):
+            return rosen(self.x)
+
+        def gradient(self):
+            return rosen_der(self.x)
+
+    objf = ot.BFGS(Objf())
+    gd = ot.GradientDescent(objf, 5 * np.ones(n))
+    gd.minimize(1e-6, iter_count=100000)
+    x = gd.x
+    print(x)
+    return np.linalg.norm(x - np.ones(n)) < 1e-3
+
+
 if __name__ == "__main__":
     print("Testing minimization of ||x|| in R^3 as an explicit function: " + str(norm_explicit(3)))
     print("Testing minimization of ||x|| in R^{300} as an explicit function: " + str(norm_explicit(300)))
@@ -94,3 +113,4 @@ if __name__ == "__main__":
     # print("Testing minimization of Rosenbrock in R^4: " + str(rosenbrock(4)))
     print("Testing minimization of scaled Rosenbrock in R^2: " + str(rosenbrock_scaled(2)))
     print("Testing minimization of hierarchical Rosenbrock in R^2: " + str(rosenbrock_hierarchical(2)))
+    print("Testing minimization of Rosenbrock in R^2 using BFGS method: " + str(rosenbrock_BFGS(2)))
