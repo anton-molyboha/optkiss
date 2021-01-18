@@ -100,7 +100,7 @@ def rosenbrock_BFGS(n):
 
     objf = ot.BFGS(Objf())
     gd = ot.GradientDescent(objf, 5 * np.ones(n))
-    gd.minimize(1e-6, iter_count=100000)
+    gd.minimize(1e-6, iter_count=100000, line_search="wolfe")
     x = gd.x
     print(x)
     return np.linalg.norm(x - np.ones(n)) < 1e-3

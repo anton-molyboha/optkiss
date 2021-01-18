@@ -63,7 +63,7 @@ class GradientDescent(object):
     def get_point(self):
         return self.x
 
-    def iteration(self, lambda1, lambda2, max_step, eps, stopping_condition=None):
+    def iteration(self, lambda1, lambda2, max_step, eps, stopping_condition=None, line_search="armijo"):
         self.objective.set_point(self.x)
         obj0 = self.objective.value()
         grad_vec = self.objective.gradient()
@@ -76,19 +76,34 @@ class GradientDescent(object):
         if grad_vec_sq * 1e20 < eps:
             # Within computational accuracy, gradient is zero. Stop iterations.
             return False
-        def objective_for_step(step):
-            self.objective.set_point(self.x + step * direction)
-            return self.objective.value()
-        def is_good(step):
-            if step * grad_vec_len <= 0.5 * eps:
-                return -1
-            obj = objective_for_step(step)
-            if obj < obj0 - lambda2 * step * grad_vec_sq:
-                return -1
-            elif obj > obj0 - lambda1 * step * grad_vec_sq:
-                return 1
-            else:
-                return 0
+        if line_search == "wolfe":
+            def objective_for_step(step):
+                self.objective.set_point(self.x + step * direction)
+                return self.objective.value(), self.objective.gradient()
+            def is_good(step):
+                obj, g = objective_for_step(step)
+                if -np.dot(g, direction) > lambda2 * grad_vec_sq:
+                    return -1
+                elif obj > obj0 - lambda1 * step * grad_vec_sq:
+                    return 1
+                else:
+                    return 0
+        else:
+            # Default is the Armijo rule for upper bound of the step, and a similar
+            # inequality for the lower bound.
+            def objective_for_step(step):
+                self.objective.set_point(self.x + step * direction)
+                return self.objective.value()
+            def is_good(step):
+                if step * grad_vec_len <= 0.5 * eps:
+                    return -1
+                obj = objective_for_step(step)
+                if obj < obj0 - lambda2 * step * grad_vec_sq:
+                    return -1
+                elif obj > obj0 - lambda1 * step * grad_vec_sq:
+                    return 1
+                else:
+                    return 0
         if np.isfinite(max_grad_step) and is_good(max_grad_step) <= 0:
             step = max_grad_step
         else:
@@ -107,8 +122,9 @@ class GradientDescent(object):
         self.x = newx
         return res
 
-    def minimize(self, stopping_eps, grad_lambda1=0.3, grad_lambda2=0.6, max_step=0.3, iter_count=10000, stopping_condition=None):
-        while self.iteration(grad_lambda1, grad_lambda2, max_step, stopping_eps, stopping_condition):
+    def minimize(self, stopping_eps, grad_lambda1=0.3, grad_lambda2=0.6, max_step=0.3, iter_count=10000,
+                 stopping_condition=None, line_search="armijo"):
+        while self.iteration(grad_lambda1, grad_lambda2, max_step, stopping_eps, stopping_condition, line_search):
             iter_count -= 1
             if iter_count <= 0:
                 raise RuntimeError("Exceeded iteration limit")
