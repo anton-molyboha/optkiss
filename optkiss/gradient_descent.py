@@ -111,7 +111,7 @@ class GradientDescent(object):
                 max_grad_step = 1.0
                 while is_good(max_grad_step) < 0:
                     max_grad_step *= 2
-            step = max_grad_step * sopt.bisect(lambda k: is_good(k * max_grad_step), 0, 1)
+            step = max_grad_step * sopt.bisect(lambda k: is_good(k * max_grad_step), 0, 1, xtol=1e-20)
 
         # Move to the new point
         newx = self.x + step * direction
