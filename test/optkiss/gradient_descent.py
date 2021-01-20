@@ -42,9 +42,14 @@ def rosenbrock(n):
 
     objf = Objf()
     gd = ot.GradientDescent(objf, 5 * np.ones(n))
-    gd.minimize(1e-4, iter_count=100000)
+    stopping_eps = 1e-6
+    iterations = [0]
+    def stopping_condition(oldx, newx, grad_vec):
+        iterations[0] += 1
+        return objf.progress_metric(oldx, newx) < stopping_eps
+    gd.minimize(stopping_eps, iter_count=100000, stopping_condition=stopping_condition)
     x = gd.x
-    print(x)
+    print("Result: {} in {} iterations.".format(x, iterations[0]))
     return np.linalg.norm(x - np.ones(n)) < 1e-3
 
 
@@ -100,9 +105,14 @@ def rosenbrock_BFGS(n):
 
     objf = ot.BFGS(Objf())
     gd = ot.GradientDescent(objf, 5 * np.ones(n))
-    gd.minimize(1e-6, iter_count=100000, line_search="wolfe")
+    stopping_eps = 1e-6
+    iterations = [0]
+    def stopping_condition(oldx, newx, grad_vec):
+        iterations[0] += 1
+        return objf.progress_metric(oldx, newx) < stopping_eps
+    gd.minimize(1e-6, iter_count=100000, line_search="wolfe", stopping_condition=stopping_condition)
     x = gd.x
-    print(x)
+    print("Result: {} in {} iterations.".format(x, iterations[0]))
     return np.linalg.norm(x - np.ones(n)) < 1e-3
 
 

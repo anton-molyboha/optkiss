@@ -246,7 +246,7 @@ class BFGS(GradientDescentObjective):
             sg = np.dot(step, delta_grad)
             # The sufficient conditions for having positive-definite H.
             # We don't want to update H otherwise, just in case.
-            if sg < 0:
+            if sg > 0:
                 r = np.dot(self._H, delta_grad) / sg
                 sr = np.dot(step[:, np.newaxis], r[np.newaxis, :])
                 self._H += ((1 + np.dot(r, delta_grad)) / sg *
