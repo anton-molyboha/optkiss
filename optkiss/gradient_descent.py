@@ -238,7 +238,6 @@ class BFGS(GradientDescentObjective):
         grad = self._base.gradient()
         if self._H is None:
             self._H = np.eye(len(grad))
-        res = -np.dot(self._H, grad)
         if ((self._last_x is not None) and
             (self._last_gradient is not None)):
             step = self.x - self._last_x
@@ -252,6 +251,7 @@ class BFGS(GradientDescentObjective):
                 self._H += ((1 + np.dot(r, delta_grad)) / sg *
                                 np.dot(step[:, np.newaxis], step[np.newaxis, :]) -
                             (sr + sr.T))
+        res = -np.dot(self._H, grad)
         self._last_x = self.x
         self._last_gradient = grad
         return res
