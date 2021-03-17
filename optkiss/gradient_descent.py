@@ -82,10 +82,10 @@ class GradientDescent(object):
                 return self.objective.value(), self.objective.gradient()
             def is_good(step):
                 obj, g = objective_for_step(step)
-                if -np.dot(g, direction) > lambda2 * grad_vec_sq:
-                    return -1
-                elif obj > obj0 - lambda1 * step * grad_vec_sq:
+                if obj > obj0 - lambda1 * step * grad_vec_sq:
                     return 1
+                elif -np.dot(g, direction) > lambda2 * grad_vec_sq:
+                    return -1
                 else:
                     return 0
         else:
