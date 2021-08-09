@@ -79,9 +79,16 @@ class GradientDescent(object):
         if line_search == "wolfe":
             def objective_for_step(step):
                 self.objective.set_point(self.x + step * direction)
-                return self.objective.value(), self.objective.gradient()
+                v = self.objective.value()
+                if np.isfinite(v):
+                    g = self.objective.gradient()
+                else:
+                    g = np.nan * np.ones(len(self.x))
+                return v, g
             def is_good(step):
                 obj, g = objective_for_step(step)
+                if obj == np.inf:
+                    return 1
                 if obj > obj0 - lambda1 * step * grad_vec_sq:
                     return 1
                 elif -np.dot(g, direction) > lambda2 * grad_vec_sq:

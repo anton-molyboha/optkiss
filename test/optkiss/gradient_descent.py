@@ -116,6 +116,50 @@ def rosenbrock_BFGS(n):
     return np.linalg.norm(x - np.ones(n)) < 1e-3
 
 
+def normconstr_BFGS_inf(n):
+    x0 = np.arange(2, n + 2)
+    threshold = 1.0
+    penalty_scale = 1e-6
+    penalty_pwr = 1
+    hit_inf = [0]
+    class Objf(ot.GradientDescentObjective):
+        def __init__(self):
+            super(Objf, self).__init__()
+
+        def value(self):
+            if self.x[0] <= threshold:
+                v = np.inf
+                hit_inf[0] += 1
+            else:
+                v = np.dot(self.x, self.x) + np.sum(self.x) ** 2
+                v += penalty_scale / (self.x[0] - threshold) ** penalty_pwr
+            return v
+
+        def gradient(self):
+            v = rosen(self.x)
+            if self.x[0] <= threshold:
+                g = np.ones(len(self.x)) * np.nan
+            else:
+                g = 2 * self.x + 2 * np.sum(self.x) * np.ones(len(self.x))
+                g[0] += -penalty_scale * penalty_pwr / \
+                        (self.x[0] - threshold) ** (penalty_pwr + 1)
+            return g
+
+    objf = ot.BFGS(Objf())
+    gd = ot.GradientDescent(objf, x0)
+    stopping_eps = 1e-6
+    iterations = [0]
+    def stopping_condition(oldx, newx, grad_vec):
+        iterations[0] += 1
+        return objf.progress_metric(oldx, newx) < stopping_eps
+    gd.minimize(1e-6, iter_count=100000, line_search="wolfe", stopping_condition=stopping_condition)
+    x = gd.x
+    expected = -np.ones(n) * threshold / n
+    expected[0] = threshold
+    print("Result: {} in {} iterations, hitting inf {} times.".format(x, iterations[0], hit_inf[0]))
+    return np.linalg.norm(x - expected) < 1e-3
+
+
 if __name__ == "__main__":
     print("Testing minimization of ||x|| in R^3 as an explicit function: " + str(norm_explicit(3)))
     print("Testing minimization of ||x|| in R^{300} as an explicit function: " + str(norm_explicit(300)))
@@ -124,3 +168,4 @@ if __name__ == "__main__":
     print("Testing minimization of scaled Rosenbrock in R^2: " + str(rosenbrock_scaled(2)))
     print("Testing minimization of hierarchical Rosenbrock in R^2: " + str(rosenbrock_hierarchical(2)))
     print("Testing minimization of Rosenbrock in R^2 using BFGS method: " + str(rosenbrock_BFGS(2)))
+    print("Testing minimization with inner penalty in R^2 using BFGS method: " + str(normconstr_BFGS_inf(2)))
