@@ -95,7 +95,7 @@ class GradientDescent(object):
                     return -1
                 else:
                     return 0
-        else:
+        elif line_search == "armijo":
             # Default is the Armijo rule for upper bound of the step, and a similar
             # inequality for the lower bound.
             def objective_for_step(step):
@@ -111,6 +111,8 @@ class GradientDescent(object):
                     return 1
                 else:
                     return 0
+        else:
+            raise ValueError("Unknown line_search method: {}".format(line_search))
         if np.isfinite(max_grad_step) and is_good(max_grad_step) <= 0:
             step = max_grad_step
         else:
