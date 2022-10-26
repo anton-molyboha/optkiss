@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import scipy.optimize as sopt
 
@@ -120,7 +121,11 @@ class GradientDescent(object):
                 max_grad_step = 1.0
                 while is_good(max_grad_step) < 0:
                     max_grad_step *= 2
-            step = max_grad_step * sopt.bisect(lambda k: is_good(k * max_grad_step), 0, 1, xtol=1e-20)
+            step_k = sopt.bisect(lambda k: is_good(k * max_grad_step), 0, 1, xtol=1e-20)
+            if is_good(step_k * max_grad_step) > 0:
+                # When is_good == 1, the objective function might be infinite, and we don't want that.
+                step_k = max(0, min(step_k - 1e-20, math.nextafter(step_k, 0.0)))
+            step = max_grad_step * step_k
 
         # Move to the new point
         newx = self.x + step * direction
