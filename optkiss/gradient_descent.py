@@ -172,6 +172,49 @@ class ScaledObjective(GradientDescentObjective):
         return self.base.max_step(d / self.scale)
 
 
+class ScaledGradient(GradientDescentObjective):
+    """
+    Modify descent direction as if we have scaled each coordinate of the decision variables space by a given factor.
+
+    Unlike `ScaledObjective`, this class operates in the original space, only adjusts the descent direction.
+
+    We are given a base objective function, f(x), and a scaling factor, `scale`.
+    Consider a "scaled" decision variable space: y = x / `scale` (the division is coordinate-wise).
+    A function g(y) is such that g(y) = g(x / `scale`) = f(x).
+    Our intent is to apply gradient descent to g(y).
+    g(y) = f(y * `scale`) , so gradient of g(y) is dg/dy = df/dx * `scale`.
+    The descent direction for the gradient descent method in the y-space would be -dg/dy = -df/dx * `scale`.
+    However, in the x-space this corresponds to the same multiplied by `scale` once again: -df/dx * (`scale` ** 2).
+    This is our modified descent direction.
+    """
+    def __init__(self, base, scale):
+        """
+         `base`: the objective function to modify, f(x).
+         `scale':
+        """
+        super(ScaledGradient, self).__init__()
+        self.base = base
+        self.scale = np.asarray(scale)
+
+    def set_point(self, x):
+        self.base.set_point(x)
+
+    def value(self):
+        return self.base.value()
+
+    def gradient(self):
+        return self.base.gradient()
+
+    def descent_direction(self):
+        return -self.base.gradient() * (self.scale ** 2)
+
+    def max_step(self, d):
+        return self.base.max_step(d)
+
+    def progress_metric(self, x1, x2):
+        return self.base.progress_metric(x1, x2)
+
+
 class HierarchicalElement(GradientDescentObjective):
     def __init__(self, base, combined_x, stage_inds, minimization_params, lower_element=None):
         """

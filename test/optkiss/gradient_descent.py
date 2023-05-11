@@ -160,6 +160,57 @@ def normconstr_BFGS_inf(n):
     return np.linalg.norm(x - expected) < 1e-3
 
 
+def scaled_gradient(n):
+    class IterCounter(object):
+        def __init__(self, eps):
+            self.iters = 0
+            self.eps = eps ** 2
+
+        def __call__(self, oldx, newx, grad):
+            self.iters += 1
+            return np.sum((newx - oldx) ** 2) <= self.eps
+
+    class Objf(ot.GradientDescentObjective):
+        def __init__(self, scale):
+            super(Objf, self).__init__()
+            self.scale = scale
+
+        def value(self):
+            return np.sum((self.x / self.scale) ** 2)
+
+        def gradient(self):
+            return 2 * self.x / (self.scale ** 2)
+
+    scale = 1 + np.arange(n) * 3
+    objf = Objf(scale)
+    x0 = 5 * np.ones(n)
+    eps = 1e-5
+
+    # iteration = [0]
+    # def callback(x, y):
+    #     iteration[0] += 1
+    #     if iteration[0] % 100 == 0:
+    #         print("Iteration: " + str(iteration[0]))
+
+    gd0 = ot.GradientDescent(objf, x0)
+    iter_counter0 = IterCounter(eps)
+    gd0.minimize(eps, stopping_condition=iter_counter0)
+
+    gd1 = ot.GradientDescent(ot.ScaledGradient(objf, scale), x0)
+    iter_counter1 = IterCounter(eps)
+    gd1.minimize(eps, iter_count=100, stopping_condition=iter_counter1)
+
+    if not np.linalg.norm(gd0.x) <= 1e-3:
+        print("Without scaled gradient: descent did not converge, ||x|| = {}".format(np.linalg.norm(gd0.x)))
+        return False
+    if not np.linalg.norm(gd1.x) <= 1e-3:
+        print("With scaled gradient: descent did not converge, ||x|| = {}".format(np.linalg.norm(gd1.x)))
+        return False
+    print("Without scaled gradient: {} iterations, with scaled gradient: {} iterations".format(iter_counter0.iters, iter_counter1.iters))
+    return iter_counter1.iters <= iter_counter0.iters
+
+
+
 if __name__ == "__main__":
     print("Testing minimization of ||x|| in R^3 as an explicit function: " + str(norm_explicit(3)))
     print("Testing minimization of ||x|| in R^{300} as an explicit function: " + str(norm_explicit(300)))
@@ -169,3 +220,4 @@ if __name__ == "__main__":
     print("Testing minimization of hierarchical Rosenbrock in R^2: " + str(rosenbrock_hierarchical(2)))
     print("Testing minimization of Rosenbrock in R^2 using BFGS method: " + str(rosenbrock_BFGS(2)))
     print("Testing minimization with inner penalty in R^2 using BFGS method: " + str(normconstr_BFGS_inf(2)))
+    print("Testing ScaledGradient: " + str(scaled_gradient(3)))
