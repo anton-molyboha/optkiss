@@ -266,6 +266,7 @@ def hierarchical_objective(base, stages, x0, minimization_params):
         res = HierarchicalElement(base, combined_x, stage, minimization_params, res)
     return res
 
+
 """
 An adapter of a GradientDescentObjective that implements BFGS method.
 BFGS method is one of quasi-Newton methods, and has super-linear convergence
@@ -311,6 +312,48 @@ class BFGS(GradientDescentObjective):
         res = -np.dot(self._H, grad)
         self._last_x = self.x
         self._last_gradient = grad
+        return res
+
+    def progress_metric(self, x1, x2):
+        return self._base.progress_metric(x1, x2)
+
+    def max_step(self, d):
+        return self._base.max_step(d)
+
+
+"""
+An adapter of a GradientDescentObjective that makes sure that the gradient is
+finite whenever the objective value is finite.
+"""
+class AssertFinite(GradientDescentObjective):
+    def __init__(self, base: GradientDescentObjective):
+        super().__init__()
+        self._base = base
+        self.x = base.x
+
+    def set_point(self, x):
+        self._base.set_point(x)
+        super().set_point(x)
+
+    def value(self):
+        return self._base.value()
+
+    def gradient(self):
+        v = self._base.value()
+        if not np.isfinite(v):
+            raise RuntimeError("Objective value is non-finite, gradient should not have been called. Point: {}".format(self.x))
+        res = self._base.gradient()
+        if not np.all(np.isfinite(res)):
+            raise RuntimeError("Non-finite gradient despite finite objective value. Point: {}".format(self.x))
+        return res
+
+    def descent_direction(self):
+        v = self._base.value()
+        if not np.isfinite(v):
+            raise RuntimeError("Objective value is non-finite, descent_direction should not have been called. Point: {}".format(self.x))
+        res = self._base.descent_direction()
+        if not np.all(np.isfinite(res)):
+            raise RuntimeError("Non-finite descent direction despite finite objective value. Point: {}".format(self.x))
         return res
 
     def progress_metric(self, x1, x2):
